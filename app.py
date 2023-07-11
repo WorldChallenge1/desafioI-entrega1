@@ -51,6 +51,9 @@ async def get_post(id: int, response: Response, db: Session = Depends(get_db)):
 
 @app.put("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_post(id: int, updated_post: PostSchema, response: Response, db: Session = Depends(get_db)):
+    if id != updated_post.id:
+        response.status_code = status.HTTP_409_CONFLICT
+        return {"message": "Post id does not match"}
     post = crud.get_post(db, id)
     if not post:
         response.status_code = status.HTTP_404_NOT_FOUND
