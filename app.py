@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -79,6 +80,15 @@ posts = [
         "content": "Recounting my thrilling hiking adventure in the mountains.",
     }
 ]
+# posts = []
+
+# Post Model
+
+
+class Post(BaseModel):
+    id: int
+    title: str
+    content: str
 
 
 @app.get("/")
@@ -86,6 +96,14 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.get("/posts")
-async def get_posts():
+@app.get("/posts", status_code=status.HTTP_200_OK)
+async def get_posts(response: Response):
+    if not posts:
+        response.status_code = status.HTTP_204_NO_CONTENT
     return posts
+
+
+@app.post("/posts", status_code=status.HTTP_201_CREATED)
+async def create_post(post: Post):
+    posts.append(post.model_dump())
+    return posts[-1]
