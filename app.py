@@ -116,3 +116,14 @@ async def get_post(id: int, response: Response):
             return post
     response.status_code = status.HTTP_404_NOT_FOUND
     return {"message": "Post not found"}
+
+
+@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_post(id: int, response: Response):
+    for post in posts:
+        if post["id"] == id:
+            posts.remove(post)
+            response.status_code = status.HTTP_204_NO_CONTENT
+            return
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return {"message": "Post not found"}
