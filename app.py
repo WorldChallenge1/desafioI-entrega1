@@ -107,3 +107,12 @@ async def get_posts(response: Response):
 async def create_post(post: Post):
     posts.append(post.model_dump())
     return posts[-1]
+
+
+@app.get("/posts/{id}", status_code=status.HTTP_200_OK)
+async def get_post(id: int, response: Response):
+    for post in posts:
+        if post["id"] == id:
+            return post
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return {"message": "Post not found"}
