@@ -1,94 +1,23 @@
-from fastapi import FastAPI, Response, status
-from pydantic import BaseModel
-from typing import Optional
+from fastapi import FastAPI, Response, status, Depends
+from schemas.posts import Post as PostSchema
+from config.database import Base, SessionLocal, engine
+from models.posts import Post as PostModel
+from sqlalchemy.orm import Session
+from typing import List, Optional
+import crud.crud as crud
+import uvicorn
 
 app = FastAPI()
 
-posts = [
-    {
-        "id": 1,
-        "title": "Hello",
-        "content": "World",
-    },
-    {
-        "id": 2,
-        "title": "First Post",
-        "content": "This is my first post!",
-    },
-    {
-        "id": 3,
-        "title": "Exciting News",
-        "content": "I have something exciting to share with you all!",
-    },
-    {
-        "id": 4,
-        "title": "Travel Adventures",
-        "content": "Exploring new places and creating amazing memories.",
-    },
-    {
-        "id": 5,
-        "title": "Favorite Recipe",
-        "content": "Sharing my all-time favorite recipe with you!",
-    },
-    {
-        "id": 6,
-        "title": "Book Review",
-        "content": "Just finished reading an incredible book. Here's my review!",
-    },
-    {
-        "id": 7,
-        "title": "Fitness Journey",
-        "content": "Documenting my fitness progress and goals.",
-    },
-    {
-        "id": 8,
-        "title": "Thoughts on Technology",
-        "content": "Discussing the latest tech trends and innovations.",
-    },
-    {
-        "id": 9,
-        "title": "Gardening Tips",
-        "content": "Sharing my tips for maintaining a beautiful garden.",
-    },
-    {
-        "id": 10,
-        "title": "Movie Recommendations",
-        "content": "Listing my top movie recommendations of all time.",
-    },
-    {
-        "id": 11,
-        "title": "Career Advice",
-        "content": "Sharing valuable career advice based on my experience.",
-    },
-    {
-        "id": 12,
-        "title": "Pet Stories",
-        "content": "Heartwarming and funny stories about my pets.",
-    },
-    {
-        "id": 13,
-        "title": "Product Review",
-        "content": "Reviewing a popular product and sharing my thoughts.",
-    },
-    {
-        "id": 14,
-        "title": "Photography Tips",
-        "content": "Providing tips and tricks for capturing stunning photos.",
-    },
-    {
-        "id": 15,
-        "title": "Hiking Adventure",
-        "content": "Recounting my thrilling hiking adventure in the mountains.",
-    }
-]
-# posts = []
+Base.metadata.create_all(bind=engine)
 
 
-# Post Model
-class Post(BaseModel):
-    id: Optional[int] = None
-    title: str
-    content: str
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @app.get("/")
@@ -97,44 +26,47 @@ async def root():
 
 
 @app.get("/posts", status_code=status.HTTP_200_OK)
-async def get_posts(response: Response):
+async def get_posts(response: Response, db: Session = Depends(get_db)):
+    posts = crud.get_posts(db)
     if not posts:
         response.status_code = status.HTTP_204_NO_CONTENT
     return posts
 
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-async def create_post(post: Post):
-    posts.append(post.model_dump())
-    return posts[-1]
+async def create_post(post: PostSchema, db: Session = Depends(get_db)):
+    created_post = crud.create_post(db, post)
+    return created_post
 
 
+# , response_model=PostSchema
 @app.get("/posts/{id}", status_code=status.HTTP_200_OK)
-async def get_post(id: int, response: Response):
-    for post in posts:
-        if post["id"] == id:
-            return post
-    response.status_code = status.HTTP_404_NOT_FOUND
-    return {"message": "Post not found"}
+async def get_post(id: int, response: Response, db: Session = Depends(get_db)):
+    post = crud.get_post(db, id)
+    if not post:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"message": "Post not found"}
+    return post
 
 
 @app.put("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def update_post(id: int, updated_post: Post, response: Response):
-    for post in posts:
-        if post["id"] == id:
-            post["title"] = updated_post.title
-            post["content"] = updated_post.content
-            return
-    response.status_code = status.HTTP_404_NOT_FOUND
-    return {"message": "Post not found"}
+async def update_post(id: int, updated_post: PostSchema, response: Response, db: Session = Depends(get_db)):
+    post = crud.get_post(db, id)
+    if not post:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"message": "Post not found"}
+    crud.update_post(db, id, updated_post)
+    return
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_post(id: int, response: Response):
-    for post in posts:
-        if post["id"] == id:
-            posts.remove(post)
-            response.status_code = status.HTTP_204_NO_CONTENT
-            return
-    response.status_code = status.HTTP_404_NOT_FOUND
-    return {"message": "Post not found"}
+async def delete_post(id: int, response: Response, db: Session = Depends(get_db)):
+    post = crud.get_post(db, id)
+    if not post:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"message": "Post not found"}
+    crud.delete_post(db, id)
+    return
+
+if __name__ == "__main__":
+    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
