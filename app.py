@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Response, status
 from pydantic import BaseModel
+from typing import Optional
 
 app = FastAPI()
 
@@ -82,11 +83,10 @@ posts = [
 ]
 # posts = []
 
+
 # Post Model
-
-
 class Post(BaseModel):
-    id: int
+    id: Optional[int] = None
     title: str
     content: str
 
@@ -114,6 +114,17 @@ async def get_post(id: int, response: Response):
     for post in posts:
         if post["id"] == id:
             return post
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return {"message": "Post not found"}
+
+
+@app.put("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_post(id: int, updated_post: Post, response: Response):
+    for post in posts:
+        if post["id"] == id:
+            post["title"] = updated_post.title
+            post["content"] = updated_post.content
+            return
     response.status_code = status.HTTP_404_NOT_FOUND
     return {"message": "Post not found"}
 
